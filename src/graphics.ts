@@ -131,9 +131,16 @@ export default class Graphics {
     this.available_texture_spaces.push([x, y])
   }
 
-  clear_rect(x: number, y: number) {
-    this.ctx.clearRect(x, y, 128, 128)
+  begin_rect(x: number, y: number) {
+    this.ctx.save()
+    this.ctx.translate(x, y)
+    this.ctx.clearRect(0, 0, 128, 128)
   }
+
+  end_rect() {
+    this.ctx.restore()
+  }
+
 
   push_el(rx: number, ry: number, rz: number, x: number, y: number, z: number, tx: number, ty: number) {
     let q = Quat.identity

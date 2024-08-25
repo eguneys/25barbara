@@ -34,6 +34,7 @@ export function my_loop(current_state: State) {
 
     Time.rem_dt += frame_time
 
+    current_state.integrate()
     while (Time.rem_dt >= Time.dt) {
       current_state.lerpables = current_state.lerpables.map(_ => _.integrate())
       Time.time += Time.dt

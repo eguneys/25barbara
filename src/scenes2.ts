@@ -31,6 +31,18 @@ class Life implements Lerpable {
 
 class Rigid implements Lerpable {
 
+    get x() {
+        return this.position.x
+    }
+
+    get y() {
+        return this.position.y
+    }
+
+    get z() {
+        return this.position.y
+    }
+
     constructor(public position: Vec3 = Vec3.zero, public dposition: Vec3 = Vec3.zero, public ddposition: Vec3 = Vec3.zero) {}
 
     integrate() {
@@ -48,46 +60,79 @@ class Rigid implements Lerpable {
 
 }
 
-abstract class HasTexture implements State {
+type PlayCtor<T extends Play> = { new(g: Graphics, s: PlayState, t: Rigid): T }
+abstract class Play {
 
-    constructor(readonly g: Graphics, transform: Vec3 = Vec3.zero) {
-
-        this.lerpables = [
-            new Life(),
-            new Rigid(transform)
-        ]
+    constructor(readonly g: Graphics, readonly s: PlayState, transform: Rigid = new Rigid()) {
+    
+        this._life = this.s.register_lerpable(new Life())
+        this._transform = this.s.register_lerpable(transform)
     }
 
+    _life: number
     get life() {
-        return this.lerpables[0] as Life
+        return this.s.get_lerpable<Life>(this._life)
     }
 
+    _transform: number
     get transform() {
-        return this.lerpables[1] as Rigid
+        return this.s.get_lerpable<Rigid>(this._transform)
     }
 
-    lerpables: Lerpable[]
+    _data: any
+    _set_data(data: any) {
+        this._data = data
+        return this
+    }
+
+    many<T extends Play>(ctor: PlayCtor<T>): T[] {
+        return this.children.filter(_ => _ instanceof ctor) as T[]
+    }
 
 
+
+    one<T extends Play>(ctor: PlayCtor<T>): T | undefined {
+        return this.children.find(_ => _ instanceof ctor) as T | undefined
+    }
+
+    _make<T extends Play>(ctor: PlayCtor<T>, data: any, t: Rigid) {
+        let res = new ctor(this.g, this.s, t)
+        res.parent = this
+        res._set_data(data).init()
+        return res
+    }
+
+    make<T extends Play>(ctor: PlayCtor<T>, data: any = {}, t: Rigid = new Rigid()) {
+        let res = this._make(ctor, data, t)
+        this.children.push(res)
+        return res
+    }
+
+    parent: Play = this
+    children: Play[] = []
 
     tx!: number
     ty!: number
 
+
+
     init() {
         [this.tx, this.ty] = this.g.borrow_texture_space()!
         this._init()
+        return this
     }
 
     integrate() {
+        this.children.forEach(_ => _.integrate())
         this._update()
     }
 
     render() {
         this._pre_draw()
+        this.children.forEach(_ => _.render())
         this._draw()
         this._post_draw()
     }
-
 
     _init() {}
     _update() {}
@@ -96,28 +141,38 @@ abstract class HasTexture implements State {
     _post_draw() {}
 }
 
-
-class Scene extends HasTexture {
-
-
-    _pre_draw() {
-        this.g.clear()
-    }
-
+class Gold extends Play {
 
     _draw() {
         let { g } = this
         let { tx, ty } = this
         let a = this.life.x
 
-        g.clear_rect(tx, ty)
+        g.begin_rect(tx, ty)
         g.ctx.fillStyle = 'gold'
         g.ctx.fillRect(0, 0, 20, 20)
         g.ctx.beginPath()
         g.ctx.arc(64, 64, Math.abs(Math.sin(a)) * 64, 0, Math.PI * 2)
         g.ctx.fill()
+        g.end_rect()
 
-        g.push_el(0, 0, Math.sin(a), 0, 0, 0, tx, ty)
+        let { x, y, z } = this.transform
+        g.push_el(0, 0, Math.sin(a), x, y, z, tx, ty)
+    }
+
+
+}
+
+class Scene extends Play {
+
+    gold!: Gold
+
+    _init() {
+        this.gold = this.make(Gold)
+    }
+
+    _pre_draw() {
+        this.g.clear()
     }
 
     _post_draw() {
@@ -126,11 +181,38 @@ class Scene extends HasTexture {
 }
 
 
+class PlayState implements State {
+
+    scene: Scene
+
+    constructor(g: Graphics) {
+        this.scene = new Scene(g, this)._set_data({}).init()
+    }
+
+    integrate(): void {
+        this.scene.integrate()
+    }
+
+    render(): void {
+        this.scene.render()
+    }
+
+    register_lerpable(lerpable: Lerpable) {
+        return this.lerpables.push(lerpable) - 1
+    }
+
+    get_lerpable<T extends Lerpable>(n: number) {
+        return this.lerpables[n] as T
+    }
+
+    lerpables: Lerpable[] = []
+}
 
 export default function SceneManager(g: Graphics) {
 
     g.once()
 
-    let state = new Scene(g)
+    let state = new PlayState(g)
+
     my_loop(state)
 }
