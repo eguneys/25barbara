@@ -1,12 +1,13 @@
 import { defineConfig } from 'vite'
 import viteImagemin from 'vite-plugin-imagemin'
+import glsl from 'vite-plugin-glsl'
 
 let colors = []
 let reserved = [...['_current_frame'], ...colors]
 
 export default defineConfig({
   base: './',
-  plugins: [viteImagemin({
+  plugins: [glsl({ compress: true }), viteImagemin({
     optipng: { optimizationLevel: 7 }
   })],
   build: {
