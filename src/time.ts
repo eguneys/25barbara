@@ -1,6 +1,6 @@
 const Time = {
   rem_dt: 0,
-  dt: 0.025,
+  dt: 16 /1000,
   time: 0,
   t_slow: 0,
   on_interval(interval: number, offset = 0) {
@@ -12,13 +12,16 @@ const Time = {
   }
 }
 
-export type Lerpable = {
-  integrate(): Lerpable
-  lerp(next_state: Lerpable, alpha: number): Lerpable,
+
+
+export type Lerpable<T> = {
+  value: T,
+  integrate(): Lerpable<T>
+  lerp(next_state: Lerpable<T>, alpha: number): Lerpable<T>,
 }
 
 export interface State {
-  lerpables: Lerpable[],
+  lerpables: Lerpable<any>[],
   integrate(): void,
   render(): void
 }
@@ -28,11 +31,11 @@ export function my_loop(current_state: State) {
   let last_t: number | undefined
   const step = (t: number) => {
     let frame_time = t - (last_t ?? t)
-    if (frame_time > 0.025) { frame_time = 0.025 }
+    if (frame_time > 25) { frame_time = 25 }
 
     last_t = t
 
-    Time.rem_dt += frame_time
+    Time.rem_dt += frame_time / 1000
 
     current_state.integrate()
     while (Time.rem_dt >= Time.dt) {

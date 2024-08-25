@@ -16,7 +16,7 @@ export function make_graphics(width: number, height: number) {
 
     let canvas = document.createElement('canvas')
 
-    let gl = canvas.getContext('webgl2', { antialias: false })!
+    let gl = canvas.getContext('webgl2', { antialias: false, premultipliedAlpha: false })!
     const on_resize = () => {
       canvas.width = width
       canvas.height = height
@@ -38,7 +38,7 @@ export function make_graphics(width: number, height: number) {
 
 type DrawElement = [Mat4, number, number]
 
-let MAX_NB = 1
+let MAX_NB = 100
 
 export default class Graphics {
 
@@ -134,6 +134,7 @@ export default class Graphics {
   begin_rect(x: number, y: number) {
     this.ctx.save()
     this.ctx.translate(x, y)
+    this.ctx.fillStyle = 'rgba(0, 0, 0, 0)'
     this.ctx.clearRect(0, 0, 128, 128)
   }
 
@@ -142,7 +143,7 @@ export default class Graphics {
   }
 
 
-  push_el(rx: number, ry: number, rz: number, x: number, y: number, z: number, tx: number, ty: number) {
+  push_el(rx: number, ry: number, rz: number, x: number, y: number, z: number, tx: number, ty: number, sx: number = 1, sy: number = sx, sz: number = sx) {
     let q = Quat.identity
     .rotateX(rx)
     .rotateY(ry)
@@ -152,6 +153,7 @@ export default class Graphics {
     .translate(Vec3.make(x, y, z))
     .rotate(q)
     .scale(Vec3.make(128, 128, 0))
+    .scale(Vec3.make(sx, sy, sz))
     .translate(Vec3.make(-1/2, 1/2, 0))
 
     this.els.push([matrix, tx, ty])
@@ -166,6 +168,10 @@ export default class Graphics {
     this.gl.viewport(0, 0, 1920, 1080)
     this.gl.clearColor(0.0, 0.0, 0.0, 1.0)
     this.gl.enable(this.gl.DEPTH_TEST)
+    this.gl.enable(this.gl.BLEND)
+    this.gl.blendFunc(this.gl.SRC_ALPHA, this.gl.ONE_MINUS_SRC_ALPHA)
+    /* https://stackoverflow.com/questions/9057401/why-is-gl-lequal-recommended-for-the-gl-depth-function-and-why-doesnt-it-work */
+    this.gl.depthFunc(this.gl.LEQUAL)
   }
 
   clear() {
@@ -188,7 +194,9 @@ export default class Graphics {
     let a_index = 0
     let i_index = 0
 
-    this.els.forEach((el, i) => {
+    this.els
+    .sort((a: DrawElement, b: DrawElement) => b[0].out[6] - a[0].out[6])
+    .forEach((el, i) => {
 
       let [matrix, x, y] = el
 
