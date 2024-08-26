@@ -1,12 +1,17 @@
+import i from './input'
 import Graphics from './graphics'
-import { Vec3 } from './math4'
+import { Mat4, Quat, Vec3 } from './math4'
 import Time, { Lerpable, my_loop, State } from './time'
+
+
+const max_dx = 15
 
 // @ts-ignore
 function lerp(a: number, b: number, t = 0.1) {
     return (1 - t) * a + t * b
 }
 
+// @ts-ignore
 function appr(v: number, t: number, by = Time.dt) {
     if (v < t) {
         return Math.min(v + by, t)
@@ -63,35 +68,30 @@ class Rigid implements Lerpable<Vec3> {
         return this.position
     }
 
-    constructor(public position: Vec3 = Vec3.zero, public dposition: Vec3 = Vec3.zero, public ddposition: Vec3 = Vec3.zero) {}
+    constructor(public position: Vec3 = Vec3.zero, public dposition: Vec3 = Vec3.zero) {}
 
     integrate() {
 
-        let ddposition = this.ddposition.clone
         let dposition = this.dposition.clone
         let position = this.position.clone
 
-        position.x = position.x + dposition.x * Time.dt + ddposition.x * (Time.dt * Time.dt * 0.5)
-        position.y = position.y + dposition.y * Time.dt + ddposition.y * (Time.dt * Time.dt * 0.5)
-        position.z = position.z + dposition.z * Time.dt + ddposition.z * (Time.dt * Time.dt * 0.5)
+        position = Vec3.make(
+            position.x + dposition.x * Time.dt,
+            position.y + dposition.y * Time.dt,
+            position.z + dposition.z * Time.dt)
 
-        ddposition.x = appr(ddposition.x, 0, Time.dt * 20)
-        ddposition.y = appr(ddposition.y, 0, Time.dt * 20)
-        ddposition.z = appr(ddposition.z, 0, Time.dt * 20)
+        dposition = Vec3.make(
+            dposition.x * 0.8,
+            dposition.y * 0.8,
+            dposition.z * 0.8)
 
-        dposition.x = dposition.x * 0.8 + (this.ddposition.x + ddposition.x) * (Time.dt * 0.5)
-        dposition.y = dposition.y * 0.8 + (this.ddposition.y + ddposition.y) * (Time.dt * 0.5)
-        dposition.z = dposition.z * 0.8 + (this.ddposition.z + ddposition.z) * (Time.dt * 0.5)
-
-        return new Rigid(position, dposition, ddposition)
+        return new Rigid(position, dposition)
     }
 
     lerp(next: Rigid, alpha: number) {
         return new Rigid(
             vec3_lerp(this.position, next.position, alpha),
-            vec3_lerp(this.dposition, next.dposition, alpha),
-            vec3_lerp(this.ddposition, next.ddposition, alpha),
-        )
+            vec3_lerp(this.dposition, next.dposition, alpha))
     }
 
 }
@@ -143,6 +143,10 @@ abstract class Play {
         this._scale = this.ps.register_lerpable(scale)
     }
 
+    get quat() {
+        let { x, y, z } = this.world_rotation
+        return Quat.identity.rotateX(x).rotateY(y).rotateZ(z)
+    }
 
     get local_position() {
         return this.transform.value
@@ -248,6 +252,16 @@ abstract class Play {
     _remove() {}
 }
 
+abstract class Group extends Play {
+
+    render() {
+        this._pre_draw()
+        this.children.forEach(_ => _.render())
+        this._post_draw()
+    }
+}
+
+// @ts-ignore
 class Gold extends Play {
 
     _init() {
@@ -265,21 +279,54 @@ class Gold extends Play {
         g.ctx.fill()
     }
 
-
 }
 
 class OneBot extends Play {
+
+    _update() {
+        let is_up = i('ArrowUp') || i('w')
+        let is_down = i('ArrowDown') || i('s')
+        let is_left = i('ArrowLeft') || i('d')
+        let is_right = i('ArrowRight') || i('a')
+
+
+        let left = Mat4.from_quat(this.parent.quat).mVec3(Vec3.left).scale(max_dx)
+        let right = Mat4.from_quat(this.parent.quat).mVec3(Vec3.right).scale(max_dx)
+        let up = Mat4.from_quat(this.parent.quat).mVec3(Vec3.up).scale(max_dx)
+        let down = Mat4.from_quat(this.parent.quat).mVec3(Vec3.down).scale(max_dx)
+
+        if (is_left) {
+            this.transform.dposition = this.transform.dposition.add(left)
+        } else if (is_right) {
+            this.transform.dposition = this.transform.dposition.add(right)
+        }
+
+        if (is_up) {
+            this.transform.dposition = this.transform.dposition.add(up)
+        } else if (is_down) {
+            this.transform.dposition = this.transform.dposition.add(down)
+        }
+
+        //this.rotation.dposition.z = Math.sin(this.life.x * 3)
+    }
+
+
     _draw() {
         let { g } = this
         g.ctx.fillStyle = 'white'
-        g.ctx.fillRect(64 - 15, 64 - 15, 30, 30)
+        g.ctx.fillRect(64 - 20, 64 - 20, 20, 20)
+        g.ctx.fillRect(0, 0, 20, 20)
+        g.ctx.fillRect(108, 108, 20, 20)
+        g.ctx.fillRect(0, 108, 20, 20)
+        g.ctx.fillRect(108, 0, 20, 20)
     }
 }
 
 class OneG extends Play {
 
     _init() {
-        this.make(OneBot, {}, Vec3.make(0, 0, 0), Vec3.make(-Math.PI * 0.39, 0, 0))
+        this.make(OneBot, {}, Vec3.make(0, 0, -1), Vec3.make(Math.PI * 0.25, 0, 0))
+        //this.make(Gold, {}, Vec3.make(0, 0, -1), Vec3.make(Math.PI * 0.25, 0, 0))
     }
 
     _draw() {
@@ -289,15 +336,20 @@ class OneG extends Play {
     }
 }
 
-class Scene extends Play {
+class Scene extends Group {
 
     _init() {
 
-        this.make(Gold)
         this.make(OneG, {}, 
-            Vec3.make(100, 15, 2), 
-            Vec3.make(Math.PI * 0.35, 0, 0), 
+            Vec3.make(0, 10, 0), 
+            Vec3.make(0, 0, 0), 
             Vec3.make(2, 1, 1))
+
+    }
+
+    _update() {
+
+        //this.g.camera.o.x = Math.sin(this.life.x) * 100
     }
 
     _pre_draw() {

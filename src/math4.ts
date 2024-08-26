@@ -2,10 +2,10 @@ export class Billboard {
 
   static make = (x: number, y: number, z: number,
                  w: number, h: number) => new Billboard([
-    Vec3.make(x, y - h, z),
-    Vec3.make(x + w, y - h, z),
-    Vec3.make(x + w, y, z),
-    Vec3.make(x, y, z),
+    Vec3.make(x - w / 2, y - h / 2, z),
+    Vec3.make(x + w / 2, y - h / 2, z),
+    Vec3.make(x + w / 2, y + h / 2, z),
+    Vec3.make(x - w / 2, y + h / 2, z),
   ])
 
   static get unit() { return Billboard.make(0, 0, 0, 1, 1) }
@@ -41,6 +41,9 @@ export class Vec3 {
   static get unit() { return new Vec3(1, 1, 1) }
   static get zero() { return new Vec3(0, 0, 0) }
   static get up() { return new Vec3(0, -1, 0) }
+  static get down() { return new Vec3(0, 1, 0) }
+  static get left() { return new Vec3(-1, 0, 0) }
+  static get right() { return new Vec3(1, 0, 0) }
 
   get vs(): Array<number> {
     return [this.x, this.y, this.z]
@@ -96,31 +99,19 @@ export class Vec3 {
   }
 
   scale(n: number) {
-    this.x *= n
-    this.y *= n
-    this.z *= n
-    return this
+    return Vec3.make(this.x * n, this.y * n, this.z * n)
   }
 
   add(v: Vec3) {
-    this.x += v.x
-    this.y += v.y
-    this.z += v.z
-    return this
+    return Vec3.make(this.x + v.x, this.y + v.y, this.z + v.z)
   }
 
   sub(v: Vec3) {
-    this.x -= v.x
-    this.y -= v.y
-    this.z -= v.z
-    return this
+    return Vec3.make(this.x - v.x, this.y - v.y, this.z - v.z)
   }
 
   mul(v: Vec3) {
-    this.x *= v.x
-    this.y *= v.y
-    this.z *= v.z
-    return this
+    return Vec3.make(this.x * v.x, this.y * v.y, this.z * v.z)
   }
 }
 
@@ -297,18 +288,18 @@ export class Mat4 {
   }
 
   translate(v: Vec3) {
-    let m = this.out
+    let m = this.out.slice(0)
 
     m[12] = m[0] * v.x + m[4] * v.y + m[8] * v.z + m[12]
     m[13] = m[1] * v.x + m[5] * v.y + m[9] * v.z + m[13]
     m[14] = m[2] * v.x + m[6] * v.y + m[10] * v.z + m[14]
     m[15] = m[3] * v.x + m[7] * v.y + m[11] * v.z + m[15]
 
-    return this
+    return new Mat4(m)
   }
 
   mul(b: Mat4) {
-    let m = this.out
+    let m = this.out.slice(0)
     let [
       a00, a01, a02, a03,
       a10, a11, a12, a13,
@@ -343,7 +334,7 @@ export class Mat4 {
         m[14] = b30 * a02 + b31 * a12 + b32 * a22 + b33 * a32
         m[15] = b30 * a03 + b31 * a13 + b32 * a23 + b33 * a33
 
-        return this
+        return new Mat4(m)
   }
 
   mVec3(v: Vec3): Vec3 {
@@ -374,7 +365,7 @@ export class Quat {
   rotateX(r: number) {
     r *= 0.5
 
-    let m = this.out
+    let m = this.out.slice(0)
 
     let bx = Math.sin(r),
       bw = Math.cos(r)
@@ -386,13 +377,13 @@ export class Quat {
     m[2] = az * bw - ay * bx
     m[3] = aw * bw - ax * bx
 
-    return this
+    return new Quat(m)
   }
 
   rotateY(r: number) {
     r *= 0.5
 
-    let m = this.out
+    let m = this.out.slice(0)
 
     let by = Math.sin(r),
       bw = Math.cos(r)
@@ -403,13 +394,13 @@ export class Quat {
     m[1] = ay * bw + aw * by
     m[2] = az * bw + ax * by
     m[3] = aw * bw - ay * by
-    return this
+    return new Quat(m)
   }
 
   rotateZ(r: number) {
     r *= 0.5
 
-    let m = this.out
+    let m = this.out.slice(0)
 
     let bz = Math.sin(r),
       bw = Math.cos(r)
@@ -420,7 +411,7 @@ export class Quat {
     m[1] = ay * bw - ax * bz
     m[2] = az * bw + aw * bz
     m[3] = aw * bw - az * bz
-    return this
+    return new Quat(m)
   }
 
   constructor(readonly out: Array<number>) {}

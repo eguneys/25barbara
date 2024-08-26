@@ -33,7 +33,7 @@ export function make_graphics(width: number, height: number) {
     off_canvas.height = 2048
     ctx.imageSmoothingEnabled = false
  
-    return new Graphics(canvas, gl, ctx, new Camera(Vec3.make(0, 0, 100), Vec3.zero))
+    return new Graphics(canvas, gl, ctx, new Camera(Vec3.make(0, 70, -100), Vec3.make(0, 0, 0)))
   }
 
 type DrawElement = [Mat4, number, number]
@@ -152,9 +152,9 @@ export default class Graphics {
     let matrix = Mat4.identity
     .translate(Vec3.make(x, y, z))
     .rotate(q)
-    .scale(Vec3.make(128, 128, 0))
+    .scale(Vec3.make(128, 128, 64))
     .scale(Vec3.make(sx, sy, sz))
-    .translate(Vec3.make(-1/2, 1/2, 0))
+    //.translate(Vec3.make(-1/2, 1/2, -1/2))
 
     this.els.push([matrix, tx, ty])
   }
@@ -169,7 +169,7 @@ export default class Graphics {
     this.gl.clearColor(0.0, 0.0, 0.0, 1.0)
     this.gl.enable(this.gl.DEPTH_TEST)
     this.gl.enable(this.gl.BLEND)
-    this.gl.blendFunc(this.gl.SRC_ALPHA, this.gl.ONE_MINUS_SRC_ALPHA)
+    this.gl.blendFunc(this.gl.ONE, this.gl.ONE_MINUS_SRC_ALPHA)
     /* https://stackoverflow.com/questions/9057401/why-is-gl-lequal-recommended-for-the-gl-depth-function-and-why-doesnt-it-work */
     this.gl.depthFunc(this.gl.LEQUAL)
   }
@@ -194,9 +194,21 @@ export default class Graphics {
     let a_index = 0
     let i_index = 0
 
-    this.els
-    .sort((a: DrawElement, b: DrawElement) => b[0].out[6] - a[0].out[6])
-    .forEach((el, i) => {
+    //console.log(this.els[0][0].mVec3(Vec3.zero))
+    let zz = this.els
+    .sort((a: DrawElement, b: DrawElement) => {
+      let bb = b[0].mVec3(Vec3.zero)
+      let aa = a[0].mVec3(Vec3.zero)
+
+      if (bb.z === aa.z) {
+        return aa.y - bb.y
+      } else {
+        return bb.z - aa.z
+      }
+
+    })
+
+    zz.forEach((el, i) => {
 
       let [matrix, x, y] = el
 
@@ -251,7 +263,7 @@ class Camera {
   }
 
   //p_matrix = Mat4.perspective(Math.PI*0.4, 16/9, 10, 1000)
-  p_matrix = Mat4.perspective_from_frust(Math.PI*0.5, 16/9, 10, 1000)
+  p_matrix = Mat4.perspective_from_frust(Math.PI*0.4, 16/9, 10, 1000)
 
   get c_matrix() {
     //return Mat4.identity.translate(Vec3.make(100, 100, 500))
