@@ -16,7 +16,7 @@ export function make_graphics(width: number, height: number) {
 
     let canvas = document.createElement('canvas')
 
-    let gl = canvas.getContext('webgl2', { antialias: false, premultipliedAlpha: false })!
+    let gl = canvas.getContext('webgl2', { antialias: true, premultipliedAlpha: false })!
     const on_resize = () => {
       canvas.width = width
       canvas.height = height
@@ -31,7 +31,7 @@ export function make_graphics(width: number, height: number) {
     let ctx = off_canvas.getContext('2d')!
     off_canvas.width = 2048
     off_canvas.height = 2048
-    ctx.imageSmoothingEnabled = false
+    ctx.imageSmoothingEnabled = true
     ctx.lineJoin = 'round'
     ctx.lineCap = 'round'
 
@@ -111,8 +111,8 @@ export default class Graphics {
     gl.bindTexture(gl.TEXTURE_2D, this.canvas_texture)
     gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, ctx.canvas)
     gl.generateMipmap(gl.TEXTURE_2D)
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
 
@@ -134,9 +134,20 @@ export default class Graphics {
     this.available_texture_spaces.push([x, y])
   }
 
-  begin_rect(x: number, y: number) {
+  begin_rect(x: number, y: number, r = 0, sx = 1, sy = 1) {
     this.ctx.save()
     this.ctx.translate(x, y)
+    if (sx < 0) {
+      //this.ctx.translate(256, 0)
+    }
+    if (sy < 0) {
+      //this.ctx.translate(0, 256)
+    }
+    this.ctx.translate(128, 128)
+    this.ctx.scale(sx, sy)
+    this.ctx.rotate(r)
+    this.ctx.translate(-128, -128)
+
     this.ctx.fillStyle = 'rgba(0, 0, 0, 0)'
     this.ctx.clearRect(0, 0, 256, 256)
   }
@@ -148,17 +159,20 @@ export default class Graphics {
   circle(x: number, y: number, r: number, fill?: string, stroke?: string) {
     if (fill) { this.ctx.fillStyle = fill }
     if (stroke) { this.ctx.strokeStyle = stroke }
+    this.ctx.lineWidth = 10
     this.ctx.beginPath()
     this.ctx.arc(x, y, r, 0, Math.PI * 2)
     this.ctx.closePath()
     fill && this.ctx.fill()
     stroke && this.ctx.stroke()
   }
-  path(definition: string, color: string, line_width = 1) {
+  path(definition: string, stroke?: string, fill?: string, line_width = 10) {
     let path = new Path2D(definition)
-    this.ctx.strokeStyle = color
+    if (stroke) { this.ctx.strokeStyle = stroke }
+    if (fill) { this.ctx.fillStyle = fill }
     this.ctx.lineWidth = line_width
-    this.ctx.stroke(path)
+    if (stroke) this.ctx.stroke(path)
+    if (fill) this.ctx.fill(path)
   }
 
   push_el(rx: number, ry: number, rz: number, x: number, y: number, z: number, tx: number, ty: number, sx: number = 1, sy: number = sx, sz: number = sx) {

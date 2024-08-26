@@ -22,7 +22,7 @@ const Colors = {
     sand: '#FFCCAA',
 }
 
-const max_dx = 15
+const max_dx = 90
 
 // @ts-ignore
 function lerp(a: number, b: number, t = 0.1) {
@@ -55,6 +55,16 @@ function vec3_lerp(a: Vec3, b: Vec3, t: number) {
         b.y * t + a.y * (1 - t),
         b.z * t + a.z * (1 - t))
 }
+
+function vec3_appr(a: Vec3, b: Vec3, t: number) {
+    return new Vec3(
+        appr(a.x, b.x, t),
+        appr(a.y, b.y, t),
+        appr(a.z, b.z, t),
+    )
+}
+
+
 
 class Life implements Lerpable<Vec3> {
 
@@ -98,10 +108,7 @@ class Rigid implements Lerpable<Vec3> {
             position.y + dposition.y * Time.dt,
             position.z + dposition.z * Time.dt)
 
-        dposition = Vec3.make(
-            dposition.x * 0.8,
-            dposition.y * 0.8,
-            dposition.z * 0.8)
+        dposition = vec3_appr(dposition, Vec3.zero, Time.dt * 300)
 
         return new Rigid(position, dposition)
     }
@@ -188,8 +195,6 @@ abstract class Play {
         return this.local_rotation.clone.add(this.parent.world_rotation)
     }
 
-
-
     _data: any
     _set_data(data: any) {
         this._data = data
@@ -225,7 +230,10 @@ abstract class Play {
     tx!: number
     ty!: number
 
+    sx?: number
+    sy?: number
 
+    r?: number
 
     init() {
         [this.tx, this.ty] = this.g.borrow_texture_space()!
@@ -235,7 +243,7 @@ abstract class Play {
 
     integrate() {
         this.children.forEach(_ => _.integrate())
-        this._update()
+        this.update()
     }
 
     render() {
@@ -243,7 +251,8 @@ abstract class Play {
 
         this.children.forEach(_ => _.render())
         let { tx, ty } = this
-        this.g.begin_rect(tx, ty)
+
+        this.g.begin_rect(tx, ty, this.r, this.sx, this.sy)
         if (this._data.debug) {
             this.debug_draw()
         } else {
@@ -270,8 +279,12 @@ abstract class Play {
     debug_draw() {
         this.g.ctx.fillStyle = 'white'
         this.g.ctx.fillRect(0, 0, 256, 256)
-        this.g.path('M 0 0 L 0 100', 'red', 10)
-        this.g.path('M 128 128 L 100 100', 'green', 10)
+        this.g.path('M 0 0 L 0 100', 'red', 'red', 10)
+        this.g.path('M 128 128 L 100 100', 'green', 'green', 10)
+    }
+
+    update() {
+        this._update()
     }
 
     _init() {}
@@ -291,8 +304,33 @@ abstract class Group extends Play {
     }
 }
 
+
+abstract class OnGround extends Play {
+
+    get ground() {
+        return this.parent as OneG
+    }
+
+    direction = [0, 0]
+
+    freeze_dir = false
+    
+    update() {
+        let n = this.transform.dposition.normalize
+        if (n.x === 0 && n.y === 0) {
+
+        } else if (this.freeze_dir) {
+        } else {
+            this.direction = [n.x, n.y]
+        }
+
+        super.update()
+    }
+}
+
 // @ts-ignore
-class Gold extends Play {
+class Gold extends OnGround {
+
 
     _init() {
     }
@@ -300,7 +338,6 @@ class Gold extends Play {
     _draw() {
         let { g } = this
         let a = this.life.x
-        this.rotation.position.z = .1
 
         g.ctx.fillStyle = 'gold'
         g.ctx.fillRect(0, 0, 20, 20)
@@ -311,13 +348,17 @@ class Gold extends Play {
 
 }
 
-class OneBot extends Play {
+class OneBot extends OnGround {
+
+    shoot_cool = 0
+    swoop_dir = [0, 0]
 
     _update() {
         let is_up = i('ArrowUp') || i('w')
         let is_down = i('ArrowDown') || i('s')
-        let is_left = i('ArrowLeft') || i('d')
-        let is_right = i('ArrowRight') || i('a')
+        let is_left = i('ArrowLeft') || i('a')
+        let is_right = i('ArrowRight') || i('d')
+        let is_shoot = i(' ') || i('x')
 
 
         let left = Mat4.from_quat(this.parent.quat).mVec3(Vec3.left).scale(max_dx)
@@ -326,15 +367,52 @@ class OneBot extends Play {
         let down = Mat4.from_quat(this.parent.quat).mVec3(Vec3.down).scale(max_dx)
 
         if (is_left) {
-            this.transform.dposition = this.transform.dposition.add(left)
+            if (is_up) {
+                this.transform.dposition = up.add(left)
+            } else if (is_down) {
+                this.transform.dposition = down.add(left)
+            } else {
+                this.transform.dposition = left
+            }
         } else if (is_right) {
-            this.transform.dposition = this.transform.dposition.add(right)
+            if (is_up) {
+                this.transform.dposition = up.add(right)
+            } else if (is_down) {
+                this.transform.dposition = down.add(right)
+            } else {
+                this.transform.dposition = right
+            }
+        } else {
+            if (is_up) {
+                this.transform.dposition = up
+            } else if (is_down) {
+                this.transform.dposition = down
+            }
         }
 
-        if (is_up) {
-            this.transform.dposition = this.transform.dposition.add(up)
-        } else if (is_down) {
-            this.transform.dposition = this.transform.dposition.add(down)
+        let [h, v] = this.direction
+
+        if (this.shoot_cool > 0) {
+            this.shoot_cool = appr(this.shoot_cool, 0, Time.dt)
+        }
+
+        this.freeze_dir = false
+        if (this.shoot_cool > .6) {
+            this.transform.dposition = Vec3.make(this.swoop_dir[0], this.swoop_dir[1], this.transform.dposition.z).scale(max_dx * 2)
+        } else if (this.shoot_cool > .5) {
+            this.freeze_dir = true
+            this.transform.dposition = Vec3.make(this.swoop_dir[0], this.swoop_dir[1], this.transform.dposition.z).scale(-max_dx * 1)
+        } else if (this.shoot_cool > .3) {
+            this.freeze_dir = true
+            this.transform.dposition = vec3_appr(this.transform.dposition, Vec3.zero, Time.dt * 160)
+        }
+
+        if (is_shoot && this.shoot_cool === 0) {
+            this.swoop_dir = this.direction
+            this.shoot_cool = .8
+            let s = this.ground.make(Swoop, {}, this.transform.position.add(Vec3.make(h, v, 0).scale(60)), this.rotation.position)
+            s.sx = h === 0 ? 1: h
+            s.r = v === 0 ? 0 : v * Math.PI * 0.5
         }
     }
 
@@ -345,30 +423,86 @@ class OneBot extends Play {
         let x = 128 
         let y = 128
         let n = 60
-        if (true) {
-            g.path(`M ${x + n} ${y} A 1 1 0 0 0 ${x + n} ${y - n}`, Colors.black, 10)
-            g.path(`M ${x - n} ${y - n} A 1 1 0 0 0 ${x - n} ${y}`, Colors.black, 10)
-            g.path(`M ${x + n} ${y - n} A 1 1 0 0 0 ${x - n} ${y - n}`, Colors.black, 10)
+
+        let [dx, dy] = this.direction
+
+        let blink = this.life.x % 3 < 2.3 || (this.life.x % 3 > 2.6 && this.life.x % 3 < 2.8)
+
+        if (dx === 0 || dy < 0) {
+                g.circle(x, y + 40, 40, Colors.red, Colors.black)
+                g.circle(x, y - 20 + swing_h, 64, dy < 0 ? Colors.black : Colors.red, dy < 0 ? Colors.black : Colors.black)
+                g.path(`M ${x + n} ${y} A 1 1 0 0 0 ${x + n} ${y - n}`, Colors.black, Colors.black, 13)
+                g.path(`M ${x - n} ${y - n} A 1 1 0 0 0 ${x - n} ${y}`, Colors.black, Colors.black, 13)
+                g.path(`M ${x + n} ${y - n} A 1 1 0 0 0 ${x - n} ${y - n}`, Colors.black, undefined, 13)
+
+
+            if (false) {
+                g.path(`M ${x - n / 2 - 10} ${y + n} L ${x - n / 2} ${y + n - 20}`, Colors.black, Colors.black, 30)
+                g.path(`M ${x + n / 2 + 10} ${y + n} L ${x + n / 2} ${y + n - 20}`, Colors.black, Colors.black, 30)
+
+                g.path(`M ${x - n / 2 + 5} ${y + n + 10} L ${x - n / 2} ${y + n + 30}`, Colors.black, Colors.black, 30)
+                g.path(`M ${x + n / 2 - 5} ${y + n + 10} L ${x + n / 2} ${y + n + 30}`, Colors.black, Colors.black, 30)
+            } 
+
+            if (dy < 0) {
+
+            } else {
+                if (blink) {
+                    g.path(`M ${x - n / 2} ${y - n / 2} L ${x - n / 2} ${y - 20}`, Colors.white, Colors.white, 20)
+                    g.path(`M ${x + n / 2} ${y - n / 2} L ${x + n / 2} ${y - 20}`, Colors.white, Colors.white, 20)
+                } else {
+                    g.path(`M ${x - n / 2 - 10} ${y - n / 2 + 10} L ${x - n / 2 + 10} ${y - n / 2 + 10}`, Colors.white, Colors.white, 20)
+                    g.path(`M ${x + n / 2 - 10} ${y - n / 2 + 10} L ${x + n / 2 + 10} ${y - n / 2 + 10}`, Colors.white, Colors.white, 20)
+                }
+            }
+        } else if (dy >= 0) {
             g.circle(x, y + 40, 40, Colors.red, Colors.black)
             g.circle(x, y - 20 + swing_h, 64, Colors.red, Colors.black)
-            if (this.life.x % 3 < 2.3 || (this.life.x % 3 > 2.6 && this.life.x % 3 < 2.8)) {
-                g.path(`M ${x - n / 2} ${y - n / 2} L ${x - n / 2} ${y - 20}`, Colors.white, 20)
-                g.path(`M ${x + n / 2} ${y - n / 2} L ${x + n / 2} ${y - 20}`, Colors.white, 20)
+            g.circle(x - 15 * dx, y - 15, 30, Colors.black, Colors.black)
+            if (dx > 0) {
+              g.path(`M ${x - 15} ${y - n - 33} A 1 5 0 0 0 ${x - 15 - 10} ${y - n}`, Colors.black, Colors.black, 20)
             } else {
-                g.path(`M ${x - n / 2 - 10} ${y - n / 2 + 10} L ${x - n / 2 + 10} ${y - n / 2 + 10}`, Colors.white, 20)
-                g.path(`M ${x + n / 2 - 10} ${y - n / 2 + 10} L ${x + n / 2 + 10} ${y - n / 2 + 10}`, Colors.white, 20)
+              g.path(`M ${x + 15 + 10} ${y - n} A 1 5 0 0 0 ${x + 15} ${y - n - 33}`, Colors.black, Colors.black, 20)
             }
-        } else {
+            if (blink) {
+                g.path(`M ${x + (n / 2 + 18) * dx} ${y - n / 2} L ${x + (n / 2 + 18) * dx} ${y - 20}`, Colors.white, Colors.white, 20)
+            } else {
+                g.path(`M ${x + (n / 2 + 20) * dx} ${y - n / 2 + 10} L ${x + (n / 2 + 10) * dx} ${y - n / 2 + 10}`, Colors.white, Colors.white, 20)
+            }
+        }
 
+    }
+}
+
+class Swoop extends Play {
+
+    lines: [number, number][] = []
+
+    _draw() {
+        //this.g.ctx.fillStyle = 'white'
+        //this.g.ctx.fillRect(0, 0, 256, 256)
+
+        let ll = this.lines.map(_ => `L ${_[0]} ${_[1]}`).join(' ')
+        let ll2 = this.lines.slice(0).reverse().map(_ => `L ${_[0] + 80} ${_[1]}`).join(' ')
+        this.g.path(`M 0 256 ${ll} ${ll2}`, 'white', 'white')
+    }
+
+
+    _update() {
+
+        let a = Math.min(Math.PI, Math.PI * (this.life.x * 11))
+        this.lines.push([Math.sin(a) * 120, 128 + Math.cos(a) * 120])
+
+        if (this.life.x > .3) {
+            this.remove()
         }
     }
 }
 
 class OneG extends Play {
-
     _init() {
         this.make(OneBot, {}, Vec3.make(-100, 0, -25), Vec3.make(Math.PI * 0.25, 0, Math.PI * 0))
-        //this.make(Gold, {}, Vec3.make(0, 0, -1), Vec3.make(Math.PI * 0.25, 0, 0))
+        this.make(Gold, {}, Vec3.make(0, 0, -25), Vec3.make(Math.PI * 0.25, 0, 0))
     }
 
     _draw() {
