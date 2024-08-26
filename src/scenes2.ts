@@ -226,7 +226,11 @@ abstract class Play {
         this.children.forEach(_ => _.render())
         let { tx, ty } = this
         this.g.begin_rect(tx, ty)
-        this._draw()
+        if (this._data.debug) {
+            this.debug_draw()
+        } else {
+          this._draw()
+        }
         this.g.end_rect()
         let { x, y, z } = this.world_position
         let { x: rx, y: ry, z: rz } = this.world_rotation
@@ -242,6 +246,14 @@ abstract class Play {
         this.children.forEach(_ => _.remove())
         this.parent.children.splice(this.parent.children.indexOf(this), 1)
         this._remove()
+    }
+
+
+    debug_draw() {
+        this.g.ctx.fillStyle = 'white'
+        this.g.ctx.fillRect(0, 0, 256, 256)
+        this.g.path('M 0 0 L 0 100', 'red', 10)
+        this.g.path('M 128 128 L 100 100', 'green', 10)
     }
 
     _init() {}
@@ -306,33 +318,37 @@ class OneBot extends Play {
         } else if (is_down) {
             this.transform.dposition = this.transform.dposition.add(down)
         }
-
-        //this.rotation.dposition.z = Math.sin(this.life.x * 3)
     }
 
 
     _draw() {
         let { g } = this
-        g.ctx.fillStyle = 'white'
-        g.ctx.fillRect(64 - 20, 64 - 20, 20, 20)
-        g.ctx.fillRect(0, 0, 20, 20)
-        g.ctx.fillRect(108, 108, 20, 20)
-        g.ctx.fillRect(0, 108, 20, 20)
-        g.ctx.fillRect(108, 0, 20, 20)
+        let swing_h = Math.sin(this.life.x * 4) * 2
+        g.ctx.lineWidth = 1
+        let x = 128 
+        let y = 108
+        g.path(`M ${x + 10} ${y} A 1 1 0 0 0 ${x + 10} ${y - 10}`, 'red')
+        g.path(`M ${x - 10} ${y - 10} A 1 1 0 0 0 ${x - 10} ${y}`, 'darkred')
+        g.path(`M ${x + 10} ${y - 10} A 1 1 0 0 0 ${x - 10} ${y - 10}`, 'red')
+        g.circle(x, y + swing_h, 10, 'red', 'white')
+        g.circle(x, y + 20, 12, 'red', 'white')
     }
 }
 
 class OneG extends Play {
 
     _init() {
-        this.make(OneBot, {}, Vec3.make(0, 0, -1), Vec3.make(Math.PI * 0.25, 0, 0))
+        this.make(OneBot, {}, Vec3.make(0, 0, -1), Vec3.make(Math.PI * 0.25, 0, Math.PI * 0))
         //this.make(Gold, {}, Vec3.make(0, 0, -1), Vec3.make(Math.PI * 0.25, 0, 0))
     }
 
     _draw() {
         let { g } = this
         g.ctx.fillStyle = `hsl(${1/13 * 255} 75% 50%)`
-        g.ctx.fillRect(0, 0, 128, 128)
+        g.ctx.fillRect(0, 0, 256, 256)
+        g.ctx.fillStyle = `red`
+        g.ctx.fillRect(0, 0, 10, 10)
+        g.ctx.fillRect(236, 236, 20, 20)
     }
 }
 

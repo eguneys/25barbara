@@ -33,7 +33,7 @@ export function make_graphics(width: number, height: number) {
     off_canvas.height = 2048
     ctx.imageSmoothingEnabled = false
  
-    return new Graphics(canvas, gl, ctx, new Camera(Vec3.make(0, 70, -100), Vec3.make(0, 0, 0)))
+    return new Graphics(canvas, gl, ctx, new Camera(Vec3.make(0, 70, -160), Vec3.make(0, 0, 0)))
   }
 
 type DrawElement = [Mat4, number, number]
@@ -114,8 +114,8 @@ export default class Graphics {
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
 
     this.available_texture_spaces = []
-    for (let x = 0; x < 2048; x+=128) {
-      for (let y = 0; y < 2048; y+=128) {
+    for (let x = 0; x < 2048; x+=256) {
+      for (let y = 0; y < 2048; y+=256) {
         this.available_texture_spaces.push([x, y])
       }
     }
@@ -135,13 +135,28 @@ export default class Graphics {
     this.ctx.save()
     this.ctx.translate(x, y)
     this.ctx.fillStyle = 'rgba(0, 0, 0, 0)'
-    this.ctx.clearRect(0, 0, 128, 128)
+    this.ctx.clearRect(0, 0, 256, 256)
   }
 
   end_rect() {
     this.ctx.restore()
   }
 
+  circle(x: number, y: number, r: number, fill?: string, stroke?: string) {
+    if (fill) { this.ctx.fillStyle = fill }
+    if (stroke) { this.ctx.strokeStyle = stroke }
+    this.ctx.beginPath()
+    this.ctx.arc(x, y, r, 0, Math.PI * 2)
+    this.ctx.closePath()
+    fill && this.ctx.fill()
+    stroke && this.ctx.stroke()
+  }
+  path(definition: string, color: string, line_width = 1) {
+    let path = new Path2D(definition)
+    this.ctx.strokeStyle = color
+    this.ctx.lineWidth = line_width
+    this.ctx.stroke(path)
+  }
 
   push_el(rx: number, ry: number, rz: number, x: number, y: number, z: number, tx: number, ty: number, sx: number = 1, sy: number = sx, sz: number = sx) {
     let q = Quat.identity
@@ -152,7 +167,7 @@ export default class Graphics {
     let matrix = Mat4.identity
     .translate(Vec3.make(x, y, z))
     .rotate(q)
-    .scale(Vec3.make(128, 128, 64))
+    .scale(Vec3.make(256, 256, 128))
     .scale(Vec3.make(sx, sy, sz))
     //.translate(Vec3.make(-1/2, 1/2, -1/2))
 
@@ -213,10 +228,10 @@ export default class Graphics {
       let [matrix, x, y] = el
 
       let uv_data = [
-        x + 128, y,
         x, y,
-        x, y + 128,
-        x + 128, y + 128,
+        x + 256, y,
+        x + 256, y + 256,
+        x, y + 256,
       ].map(_ => _ / 2048)
 
       let { vertex_data, indices } = Billboard.unit.transform(matrix)
