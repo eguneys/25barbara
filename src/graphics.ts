@@ -32,8 +32,10 @@ export function make_graphics(width: number, height: number) {
     off_canvas.width = 2048
     off_canvas.height = 2048
     ctx.imageSmoothingEnabled = false
- 
-    return new Graphics(canvas, gl, ctx, new Camera(Vec3.make(0, 70, -160), Vec3.make(0, 0, 0)))
+    ctx.lineJoin = 'round'
+    ctx.lineCap = 'round'
+
+    return new Graphics(canvas, gl, ctx, new Camera(Vec3.make(0, 70, -270), Vec3.make(0, 0, 0)))
   }
 
 type DrawElement = [Mat4, number, number]
@@ -108,6 +110,7 @@ export default class Graphics {
     gl.activeTexture(gl.TEXTURE0)
     gl.bindTexture(gl.TEXTURE_2D, this.canvas_texture)
     gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, ctx.canvas)
+    gl.generateMipmap(gl.TEXTURE_2D)
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
@@ -167,7 +170,7 @@ export default class Graphics {
     let matrix = Mat4.identity
     .translate(Vec3.make(x, y, z))
     .rotate(q)
-    .scale(Vec3.make(256, 256, 128))
+    .scale(Vec3.make(64, 64, 64))
     .scale(Vec3.make(sx, sy, sz))
     //.translate(Vec3.make(-1/2, 1/2, -1/2))
 
@@ -278,7 +281,7 @@ class Camera {
   }
 
   //p_matrix = Mat4.perspective(Math.PI*0.4, 16/9, 10, 1000)
-  p_matrix = Mat4.perspective_from_frust(Math.PI*0.4, 16/9, 10, 1000)
+  p_matrix = Mat4.perspective_from_frust(Math.PI*0.25, 16/9, 10, 1000)
 
   get c_matrix() {
     //return Mat4.identity.translate(Vec3.make(100, 100, 500))

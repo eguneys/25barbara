@@ -3,6 +3,24 @@ import Graphics from './graphics'
 import { Mat4, Quat, Vec3 } from './math4'
 import Time, { Lerpable, my_loop, State } from './time'
 
+const Colors = {
+    black: '#000000',
+    darkblue: '#1D2B53',
+    darkred: '#7E2553',
+    darkgreen: '#008751',
+    brown: '#AB5236',
+    darkgray: '#5F574F',
+    gray: '#C2C3C7',
+    white: '#FFF1E8',
+    red: '#FF004D',
+    orange: '#FFA300',
+    yellow: '#FFEC27',
+    green: '#00E436',
+    blue: '#29ADFF',
+    purple: '#83769C',
+    pink: '#FF77A8',
+    sand: '#FFCCAA',
+}
 
 const max_dx = 15
 
@@ -324,31 +342,39 @@ class OneBot extends Play {
     _draw() {
         let { g } = this
         let swing_h = Math.sin(this.life.x * 4) * 2
-        g.ctx.lineWidth = 1
         let x = 128 
-        let y = 108
-        g.path(`M ${x + 10} ${y} A 1 1 0 0 0 ${x + 10} ${y - 10}`, 'red')
-        g.path(`M ${x - 10} ${y - 10} A 1 1 0 0 0 ${x - 10} ${y}`, 'darkred')
-        g.path(`M ${x + 10} ${y - 10} A 1 1 0 0 0 ${x - 10} ${y - 10}`, 'red')
-        g.circle(x, y + swing_h, 10, 'red', 'white')
-        g.circle(x, y + 20, 12, 'red', 'white')
+        let y = 128
+        let n = 60
+        if (true) {
+            g.path(`M ${x + n} ${y} A 1 1 0 0 0 ${x + n} ${y - n}`, Colors.black, 10)
+            g.path(`M ${x - n} ${y - n} A 1 1 0 0 0 ${x - n} ${y}`, Colors.black, 10)
+            g.path(`M ${x + n} ${y - n} A 1 1 0 0 0 ${x - n} ${y - n}`, Colors.black, 10)
+            g.circle(x, y + 40, 40, Colors.red, Colors.black)
+            g.circle(x, y - 20 + swing_h, 64, Colors.red, Colors.black)
+            if (this.life.x % 3 < 2.3 || (this.life.x % 3 > 2.6 && this.life.x % 3 < 2.8)) {
+                g.path(`M ${x - n / 2} ${y - n / 2} L ${x - n / 2} ${y - 20}`, Colors.white, 20)
+                g.path(`M ${x + n / 2} ${y - n / 2} L ${x + n / 2} ${y - 20}`, Colors.white, 20)
+            } else {
+                g.path(`M ${x - n / 2 - 10} ${y - n / 2 + 10} L ${x - n / 2 + 10} ${y - n / 2 + 10}`, Colors.white, 20)
+                g.path(`M ${x + n / 2 - 10} ${y - n / 2 + 10} L ${x + n / 2 + 10} ${y - n / 2 + 10}`, Colors.white, 20)
+            }
+        } else {
+
+        }
     }
 }
 
 class OneG extends Play {
 
     _init() {
-        this.make(OneBot, {}, Vec3.make(0, 0, -1), Vec3.make(Math.PI * 0.25, 0, Math.PI * 0))
+        this.make(OneBot, {}, Vec3.make(-100, 0, -25), Vec3.make(Math.PI * 0.25, 0, Math.PI * 0))
         //this.make(Gold, {}, Vec3.make(0, 0, -1), Vec3.make(Math.PI * 0.25, 0, 0))
     }
 
     _draw() {
         let { g } = this
-        g.ctx.fillStyle = `hsl(${1/13 * 255} 75% 50%)`
+        g.ctx.fillStyle = Colors.sand
         g.ctx.fillRect(0, 0, 256, 256)
-        g.ctx.fillStyle = `red`
-        g.ctx.fillRect(0, 0, 10, 10)
-        g.ctx.fillRect(236, 236, 20, 20)
     }
 }
 
@@ -359,7 +385,7 @@ class Scene extends Group {
         this.make(OneG, {}, 
             Vec3.make(0, 10, 0), 
             Vec3.make(0, 0, 0), 
-            Vec3.make(2, 1, 1))
+            Vec3.make(6, 3, 3))
 
     }
 
