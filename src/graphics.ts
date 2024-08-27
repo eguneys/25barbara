@@ -117,9 +117,9 @@ export default class Graphics {
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
 
     this.available_texture_spaces = []
-    for (let x = 0; x < 2048; x+=256) {
-      for (let y = 0; y < 2048; y+=256) {
-        this.available_texture_spaces.push([x, y])
+    for (let x = 0; x < 2048; x+=410) {
+      for (let y = 0; y < 2048; y+=410) {
+        this.available_texture_spaces.push([x + 5, y + 5])
       }
     }
   }
@@ -143,13 +143,13 @@ export default class Graphics {
     if (sy < 0) {
       //this.ctx.translate(0, 256)
     }
-    this.ctx.translate(128, 128)
+    this.ctx.translate(200, 200)
     this.ctx.scale(sx, sy)
     this.ctx.rotate(r)
-    this.ctx.translate(-128, -128)
+    this.ctx.translate(-200, -200)
 
     this.ctx.fillStyle = 'rgba(0, 0, 0, 0)'
-    this.ctx.clearRect(0, 0, 256, 256)
+    this.ctx.clearRect(0, 0, 400, 400)
   }
 
   end_rect() {
@@ -246,9 +246,9 @@ export default class Graphics {
 
       let uv_data = [
         x, y,
-        x + 256, y,
-        x + 256, y + 256,
-        x, y + 256,
+        x + 400, y,
+        x + 400, y + 400,
+        x, y + 400,
       ].map(_ => _ / 2048)
 
       let { vertex_data, indices } = Billboard.unit.transform(matrix)
